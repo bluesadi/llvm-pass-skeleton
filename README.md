@@ -1,17 +1,21 @@
 # llvm-pass-skeleton
 
-A completely useless LLVM pass.
-It's for LLVM 14.
+A LLVM pass skeleton using new pass manager.
+It's for LLVM 16.0.6.
 
 Build:
-
-    $ cd llvm-pass-skeleton
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ make
-    $ cd ..
+```
+$ cd llvm-pass-skeleton
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ cd ..
+```
 
 Run:
-
-    $ clang -flegacy-pass-manager -Xclang -load -Xclang build/skeleton/libSkeletonPass.* something.c
+```
+$ cd test
+$ clang -emit-llvm -S test.c -o test.ll
+$ opt -disable-output -load-pass-plugin=../build/skeleton/SkeletonPass.so -passes="skeleton-pass" test.ll
+```

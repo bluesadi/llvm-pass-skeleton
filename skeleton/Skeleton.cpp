@@ -1,30 +1,33 @@
-#include "llvm/Pass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 using namespace llvm;
 
 namespace {
-  struct SkeletonPass : public FunctionPass {
-    static char ID;
-    SkeletonPass() : FunctionPass(ID) {}
 
-    virtual bool runOnFunction(Function &F) {
-      errs() << "I saw a function called " << F.getName() << "!\n";
-      return false;
+struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
+    PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM) {
+        errs() << "I saw a function called " << F.getName() << "!\n";
+        return PreservedAnalyses::all();
     }
-  };
-}
 
-char SkeletonPass::ID = 0;
+    // It should return true, otherwise this pass will not work when no optimization flag (i.e.,
+    // -O0) is set.
+    // See: https://llvm.org/docs/WritingAnLLVMNewPMPass.html#required-passes
+    static bool isRequired() { return true; }
+};
 
-// Automatically enable the pass.
-// http://adriansampson.net/blog/clangpass.html
-static void registerSkeletonPass(const PassManagerBuilder &,
-                         legacy::PassManagerBase &PM) {
-  PM.add(new SkeletonPass());
+} // namespace
+
+extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
+    return {LLVM_PLUGIN_API_VERSION, "SkeletonPass", "v0.1", [](PassBuilder &PB) {
+                PB.registerPipelineParsingCallback(
+                    [](StringRef PassName, FunctionPassManager &FPM, ...) {
+                        if (PassName == "skeleton-pass") {
+                            FPM.addPass(SkeletonPass());
+                            return true;
+                        }
+                        return false;
+                    });
+            }};
 }
-static RegisterStandardPasses
-  RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
-                 registerSkeletonPass);
